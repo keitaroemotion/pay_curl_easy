@@ -1,0 +1,6 @@
+ETC=/usr/local/etc/pay
+BIN=/usr/local/bin/
+
+mkdir -p $ETC
+cp config $ETC/
+cp pay $BIN 

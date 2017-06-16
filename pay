@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+
+CONFIG = "/usr/local/etc/pay/config"
+
+def config
+  lines = File.open(CONFIG, "r")
+            .select { |line| line.include?("=")    }
+            .map    { |line| line.strip.split("=") }
+            .flatten
+  Hash[*lines]
+end
+
+puts config
+
+#curl 'https://aaaaa/search?scope=charge&query=John&filters\[created\]=2016-08-01..2016-08-30&filters\[paid\]=true' \
+#  -u :
