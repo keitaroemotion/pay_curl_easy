@@ -1,6 +1,10 @@
 #!/usr/bin/env ruby
 
-CONFIG = "/usr/local/etc/pay/config"
+require "colorize"
+
+CONFIG  = "/usr/local/etc/pay/config"
+MANUALS = "/usr/local/etc/pay/manuals"
+SEARCH  = "#{MANUALS}/search"
 
 def config
   lines = File.open(CONFIG, "r")
@@ -10,7 +14,173 @@ def config
   Hash[*lines]
 end
 
-puts config
+def fit(text)
+  text.gsub("[", "\\[").gsub("]", "\\]")
+end
 
-#curl 'https://aaaaa/search?scope=charge&query=John&filters\[created\]=2016-08-01..2016-08-30&filters\[paid\]=true' \
-#  -u :
+options = ARGV
+
+search = """
+#  ===============================
+#             search
+#  ===============================
+
+#  scope:       The String Search
+#  location:    Path to retrieve a search
+#  query:       Searching text which was sent to the request.
+#  filters:     Searching text with specific key which was sent to the request.
+#  page:        (optional, default: 1) Specific page number sent to the request.
+#  total_pages: Total pages from search result.
+#  data:        Searching result.
+
+   scope:       charge
+   location:    
+   query:       John
+   filters:     filters[created]=2016-08-01..2016-08-30 &
+                filters\[paid\]=true
+   page:        
+   total_pages: 
+   data:        
+"""
+
+def set_dirs
+  [
+    MANUALS,
+    SEARCH,
+  ].each do |dir|
+    unless File.directory?(dir)
+      system "mkdir -p #{dir}"
+    end
+  end  
+end
+
+def ask(message, param_restriction = nil)
+  print message + " "
+  input = $stdin.gets.chomp.downcase
+  case input
+  when nil
+    ask(message) 
+  when "q"
+    abort
+  else
+    if param_restriction
+      param_restriction.include?(input) ? input : ask(message, param_restriction)
+    else
+      input
+    end
+  end
+end
+
+def list_manuals(selection)
+  dir = File.join(MANUALS, selection)
+  Dir["#{dir}/*"].map{ |file| File.basename(file) }
+end
+
+def pick(commands, input)
+  commands.select {|c| c.start_with?(input)}.first
+rescue
+  nil
+end
+
+def selection(input = nil)
+  if input.nil?
+    commands = [
+      "search",
+    ]
+    puts 
+    puts commands  
+    puts
+    input = ask("[which one?]")
+  end  
+  match = pick(commands, input)
+  match ? match : selection
+end
+
+def vim(file, instruction)
+  f = File.open(file, "w")
+  f.puts instruction
+  f.close
+  system "vim #{file}"
+end
+
+def iterate_disp(manuals)
+  puts
+  manuals.each_with_index do |manual, i|
+    puts "[#{i}] #{manual}"
+  end
+  manuals
+end
+
+def open_manual(category, manuals)
+  compress(File.read("#{MANUALS}/#{category}/#{manuals[ask("[enter index]").to_i]}"))
+end
+
+def play(category, params)
+  conf = config
+  combined_params = params.select{|param| param.size == 2 }.compact.map do |param|
+    if param[0] == "filters"
+      param[1]
+    else
+      param[0] + "=" + param[1]
+    end  
+  end.join("&") + " \\ \n -d " + config["skey"]
+
+  command = ("curl "+ conf["domain"] + "/" + category +  "/" + combined_params)
+  puts
+  puts command.cyan
+  puts
+  command
+end
+
+def compress(data)
+  data
+    .split("&")
+    .map{ |l| l.sub!(/^\n/, '').strip.chomp }
+    .join("&")
+    .split("\n")
+    .map{ |l| l + "\n" }
+end
+
+def read
+  category = selection
+  params = open_manual(category, iterate_disp(list_manuals(category))).map do |line|
+    comment = line.start_with?("#")
+    print(comment ? line.green : line.yellow)
+    comment ? nil : line.strip.chomp.split(":").map{|x| fit(x.strip)}
+  end.compact.select{|x| x.size > 0}
+  puts
+  [category, params]
+end
+
+set_dirs
+
+case options.first
+when "help", "-h"
+  puts
+  puts "pay [help]     ... help menu"
+  puts "pay [-l]       ... enlist the manuals"
+  puts "pay [-p]       ... play a manual"
+  puts "pay [-n]       ... generate | edit manual"
+  puts "pay [-d]       ... delete manual"
+  puts
+when "list", "-l"
+  read
+when "play", "-p"
+  category, params = read
+  ask("Play? [Y/n]") == "y" ? play(category, params) : ""
+when "new", "-n"
+  manual      = selection(options[1]) 
+  manual_name = ask("[name]")
+  vim "#{MANUALS}/#{manual}/#{manual_name}", search
+when "delete", "-d"
+  manual      = selection(options[1]) 
+  puts
+  puts Dir["#{MANUALS}/#{manual}/*"].map{|file| File.basename(file)}
+  puts
+  manual_name = ask("[name]")
+  system "rm #{MANUALS}/#{manual}/#{manual_name}"
+  puts
+  puts "#{manual_name} deleted!".red
+  puts
+else
+end
