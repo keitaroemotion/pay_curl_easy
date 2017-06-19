@@ -180,7 +180,7 @@ when "list", "-l"
   read
 when "play", "-p"
   category, params = read(ARGV[1], ARGV[2])
-  if ARGV[3] == "y"
+  if ARGV[3] != "y"
     ask("Play? [Y/n]") == "y" ? play(category, params) : ""
   else
     play(category, params)
