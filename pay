@@ -15,7 +15,8 @@ def config
 end
 
 def fit(text)
-  text
+  text.gsub("[", "\\[")
+      .gsub("]", "\\]")
 end
 
 options = ARGV
@@ -132,10 +133,11 @@ def play(category, params)
   puts
   #puts command.gsub(/\\/,'\&\&').red
   #system command.gsub(/\\/,'')
+  system "echo #{command}"
   system command
 end
 
-def add_skey
+def add_skey(command)
   command + " -u " + config["skey"] + ":"
 end
 
