@@ -15,7 +15,7 @@ def config
 end
 
 def fit(text)
-  text.gsub("[", "\\[").gsub("]", "\\]")
+  text
 end
 
 options = ARGV
@@ -123,13 +123,20 @@ def play(category, params)
     else
       param[0] + "=" + param[1]
     end  
-  end.join("&") + " \\ \n -d " + config["skey"]
+  end.join("&")
 
-  command = ("curl "+ conf["domain"] + "/" + category +  "/" + combined_params)
+  command = ("curl -v '"+ conf["domain"] + "/" + category +  "/" + combined_params + "'")
+  command = add_skey(command)
   puts
   puts command.cyan
   puts
-  command
+  #puts command.gsub(/\\/,'\&\&').red
+  #system command.gsub(/\\/,'')
+  system command
+end
+
+def add_skey
+  command + " -u " + config["skey"] + ":"
 end
 
 def compress(data)
