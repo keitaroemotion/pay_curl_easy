@@ -134,8 +134,6 @@ def play(category, params)
   puts
   puts command.cyan
   puts
-  system "echo #{command.green}"
-  puts
   system command
 end
 
@@ -152,14 +150,23 @@ def compress(data)
     .map{ |l| l + "\n" }
 end
 
-def read(category=nil, manual=nil)
+def insert_opts(opts, pair)
+  if opts[pair.first]
+    [pair.first, opts[pair.first]]
+  else
+    pair 
+  end
+end
+
+def read(opts={}, category=nil, manual=nil)
   category ||= selection
   params = open_manual(category, iterate_disp(list_manuals(category)), manual).map do |line|
     comment = line.start_with?("#")
     print(comment ? line.green : line.yellow)
     comment ? nil : line.strip.chomp.split(":").map{|x| fit(x.strip)}
-  end.compact.select{|x| x.size > 0}
-  puts
+  end.compact.select{|x| x.size > 0}.map do |pair|
+    insert_opts(opts, pair)
+  end
   [category, params]
 end
 
@@ -179,8 +186,12 @@ when "help", "-h"
 when "list", "-l"
   read
 when "play", "-p"
-  category, params = read(ARGV[1], ARGV[2])
-  if ARGV[3] != "y"
+  args = ARGV.select{|arg| !arg.include?("=")}
+  opts = ARGV.select{|arg| arg.include?("=")}.map{|arg| arg.split("=")}.flatten
+  opts = opts.size > 0 ? Hash[*opts] : {}
+  
+  category, params = read(opts, args[1], args[2])
+  if args[3] != "y"
     ask("Play? [Y/n]") == "y" ? play(category, params) : ""
   else
     play(category, params)
