@@ -112,8 +112,11 @@ def iterate_disp(manuals)
   manuals
 end
 
-def open_manual(category, manuals)
-  compress(File.read("#{MANUALS}/#{category}/#{manuals[ask("[enter index]").to_i]}"))
+def open_manual(category, manuals, manual=nil)
+  manual ||= manuals[ask("[enter index]").to_i]
+  compress(File.read("#{MANUALS}/#{category}/#{manual}"))
+rescue
+  abort "\n#{manual} does not exist. You need to enter correct manual.\n".red
 end
 
 def play(category, params)
@@ -131,9 +134,8 @@ def play(category, params)
   puts
   puts command.cyan
   puts
-  #puts command.gsub(/\\/,'\&\&').red
-  #system command.gsub(/\\/,'')
-  system "echo #{command}"
+  system "echo #{command.green}"
+  puts
   system command
 end
 
@@ -150,9 +152,9 @@ def compress(data)
     .map{ |l| l + "\n" }
 end
 
-def read
-  category = selection
-  params = open_manual(category, iterate_disp(list_manuals(category))).map do |line|
+def read(category=nil, manual=nil)
+  category ||= selection
+  params = open_manual(category, iterate_disp(list_manuals(category)), manual).map do |line|
     comment = line.start_with?("#")
     print(comment ? line.green : line.yellow)
     comment ? nil : line.strip.chomp.split(":").map{|x| fit(x.strip)}
@@ -166,17 +168,23 @@ set_dirs
 case options.first
 when "help", "-h"
   puts
-  puts "pay [help]     ... help menu"
-  puts "pay [-l]       ... enlist the manuals"
-  puts "pay [-p]       ... play a manual"
-  puts "pay [-n]       ... generate | edit manual"
-  puts "pay [-d]       ... delete manual"
+  puts "pay [help]                    ... help menu"
+  puts "pay [-l]                      ... enlist the manuals"
+  puts "pay [-p]                      ... play a manual with select mode"
+  puts "pay [-p][category][manual]    ... play a manual without select mode"
+  puts "pay [-p][category][manual] y  ... play a manual automatically"
+  puts "pay [-n]                      ... generate | edit manual"
+  puts "pay [-d]                      ... delete manual"
   puts
 when "list", "-l"
   read
 when "play", "-p"
-  category, params = read
-  ask("Play? [Y/n]") == "y" ? play(category, params) : ""
+  category, params = read(ARGV[1], ARGV[2])
+  if ARGV[3] == "y"
+    ask("Play? [Y/n]") == "y" ? play(category, params) : ""
+  else
+    play(category, params)
+  end
 when "new", "-n"
   manual      = selection(options[1]) 
   manual_name = ask("[name]")
